@@ -6,6 +6,7 @@ namespace App\Command\Card;
 
 use App\Exception\ApiResponseException;
 use App\Exception\ConnectionException;
+use App\Service\CardService;
 use App\Service\RequestService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -16,7 +17,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 class AddCommand extends Command
 {
 	public function __construct(
-		private readonly RequestService $requestService
+		private readonly RequestService $requestService,
+		private readonly CardService    $cardService
 	) {
 		parent::__construct();
 	}
@@ -29,38 +31,18 @@ class AddCommand extends Command
 			'phpstorm',
 		];
 
-		$response = $this->addCardToAnki($deckName, $text, $tags);
+		try {
+			$this->cardService->addClozeCardToAnki($deckName, $text, $tags);
+		} catch (ApiResponseException $e) {
+			$output->writeln('<error>API response error: ' . $e->getMessage() . '</error>');
+
+			return Command::FAILURE;
+		} catch (ConnectionException $e) {
+			$output->writeln('<error>Connection error: ' . $e->getMessage() . '</error>');
+
+			return Command::FAILURE;
+		}
 
 		return Command::SUCCESS;
-	}
-
-	/**
-	 * @throws ApiResponseException
-	 * @throws ConnectionException
-	 */
-	private function addCardToAnki(string $deckName, string $text, array $tags = []): void {
-		$post = [
-			'action' => 'addNote',
-			'version' => 6,
-			'params' => [
-				'note' => [
-					'deckName' => $deckName,
-					'modelName' => 'Cloze',
-					'fields' => [
-						'Text' => $text,
-					],
-					'options' => [
-						'allowDuplicate' => false,
-					],
-					'tags' => $tags,
-				],
-			],
-		];
-
-		$response = $this->requestService->do($post);
-
-		if (isset($response['error'])) {
-			throw new ApiResponseException('AnkiConnect error: ' . $response['error']);
-		}
 	}
 }
