@@ -7,7 +7,7 @@ namespace App\Service;
 use App\Constant\Api;
 use App\Exception\ConnectionException;
 
-class ApiRequestService
+class RequestService
 {
 	// curl localhost:8765 -X POST -d '{"action": "deckNames", "version": 6}'
 	/**
