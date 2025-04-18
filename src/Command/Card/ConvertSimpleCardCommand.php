@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Command\Card;
 
+use App\Dto\BasicCard;
+use App\Dto\Card;
 use App\Exception\ApiResponseException;
 use App\Exception\ConnectionException;
 use App\Service\CardService;
@@ -39,6 +41,8 @@ class ConvertSimpleCardCommand extends Command
 			return Command::FAILURE;
 		}
 
+		$this->cardService->setMarkdownFilePath($file);
+
 		// read file
 		$contents = file_get_contents($file);
 		if ($contents === false) {
@@ -47,92 +51,90 @@ class ConvertSimpleCardCommand extends Command
 			return Command::FAILURE;
 		}
 
-		// ## Card front 1
-		//
-		//Card back 1. All cards use markdown syntax.
-		//
-		//[#tree](tree.md)
-		//
-		//## Card front 2
-		//
-		//Card back 2.
-		//
-		//## B-tree complexity: access, insert, delete
-		//
-		//All: O(log n)
-		//
-		//[#complexity](complexity.md) [#tree](tree.md) [#tag]()
-		//
-		//## Card with additional front data
-		//
-		//Front data goes here
-		//
-		//%
-		//
-		//Back data goes here
-		//
-		//And here
-		//
-		//[#tag1]() [#tag2]()
-		//
-		//## Not allowed card
-
 		$cards = $this->splitFileToCards($contents);
+//		dd($cards);
 
 		$deckName = 'ObsidianDeck';
 
 		foreach ($cards as $card) {
-			$lines = explode("\n", $card);
-			$front = '';
-			$back = '';
-			$tags = [];
-			foreach ($lines as $line) {
-				if (str_starts_with($line, '## ')) {
-					$front = trim(substr($line, 3));
-				}
-				else if (str_starts_with($line, '%')) {
-					continue;
-				}
-				else if (preg_match('/^\[#(.+?)\]/', $line, $matches)) {
-					$tags[] = trim($matches[1]);
-				}
-				else {
-					$back .= trim($line) . "\n";
-				}
+			$front = $card->getFront();
+			if ($card->isValid() === false) {
+				$output->writeln('<error>Invalid card: ' . $front . '</error>');
+				continue;
 			}
-			if (!empty($front) && !empty($back)) {
-				try {
-					$this->cardService->addCardToAnki($deckName, $front, $back, $tags);
-				} catch (ApiResponseException $e) {
-					$output->writeln('<error>API response error: ' . $e->getMessage() . '</error>');
 
-					return Command::FAILURE;
-				} catch (ConnectionException $e) {
-					$output->writeln('<error>Connection error: ' . $e->getMessage() . '</error>');
+			try {
+				$id = $this->cardService->addCardToAnki($deckName, $card);
+				$output->writeln('<info>Card added: ' . $front . ' (ID: ' . $id . ')</info>');
+			} catch (ApiResponseException $e) {
+				$output->writeln('<error>API response error: ' . $e->getMessage() . '</error>');
 
-					return Command::FAILURE;
-				}
+				return Command::FAILURE;
+			} catch (ConnectionException $e) {
+				$output->writeln('<error>Connection error: ' . $e->getMessage() . '</error>');
+
+				return Command::FAILURE;
 			}
 		}
 
 		return Command::SUCCESS;
 	}
 
+	/**
+	 * @param string $contents
+	 *
+	 * @return Card[]
+	 */
 	private function splitFileToCards(string $contents): array {
 		$cards = [];
-		$lines = explode("\n", $contents);
-		$currentCard = [];
-		foreach ($lines as $line) {
-			if (preg_match('/^## /', $line)) {
-				if (!empty($currentCard)) {
-					$cards[] = implode("\n", $currentCard);
-					$currentCard = [];
+		$chunks = preg_split('/^##\s*/m', $contents);
+
+		foreach ($chunks as $chunk) {
+			if (empty(trim($chunk))) {
+				continue;
+			}
+			//echo "CHUNK:\n" . $chunk . "\n----\n";
+			$chunk = trim($chunk);
+
+			$lines = explode("\n", $chunk);
+			$front = '';
+			$back = '';
+			$tags = [];
+			$collectingFront = true;
+
+			foreach ($lines as $line) {
+				$line = trim($line);
+				if ($line === '' || $line === '%') {
+					continue;
+				}
+
+				if (preg_match_all('/\[#([^\]]+)\]/', $line, $matches)) {
+					foreach ($matches[1] as $tag) {
+						$tags[] = trim($tag);
+					}
+					continue;
+				}
+
+				if (str_starts_with($line, '==')) {
+					$collectingFront = false;
+					$back .= trim(substr($line, 2)) . "\n";
+					continue;
+				}
+
+				if ($collectingFront) {
+					$front .= $line . "\n";
+				}
+				else {
+					$back .= $line . "\n";
 				}
 			}
-			$currentCard[] = $line;
-		}
-		if (!empty($currentCard)) {
-			$cards[] = implode("\n", $currentCard);
+
+			$front = trim($front);
+			$back = trim($back);
+
+			if (!empty($front) && !empty($back)) {
+				$cards[] = new BasicCard($front, $back, $tags);
+			}
 		}
 
 		return $cards;

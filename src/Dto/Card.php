@@ -23,8 +23,10 @@ abstract class Card
 		$this->front = nl2br($this->front);
 		$this->back = nl2br($this->back);
 
+		// cover everything with <div> tag
+		$this->front = "<div class=\"card\">{$this->front}</div>";
+
 		if ($this->hasPicture()) {
-			printf("Card with back (%s) has picture\n", $this->back);
 			$this->front = $this->replacePictureAsHtml($this->front);
 			$this->front = $this->replaceSubdirInPicturePath($this->front);
 		}
@@ -67,30 +69,11 @@ abstract class Card
 		return !(empty($this->front) || empty($this->back));
 	}
 
-	public function getPictureUrl(): string|null {
-		// get the path of the file and then check if the picture is at this path or in attachments subdir
-		$pattern = '/!\[.*?\]\((.*?)\)/';
-		preg_match($pattern, $this->front, $matches);
-		if (isset($matches[1])) {
-			$picturePath = $matches[1];
-			// check if the picture is in attachments subdir
-			if (str_contains($picturePath, 'attachments/')) {
-				$picturePath = str_replace('attachments/', '', $picturePath);
-			}
-
-			return $picturePath;
-		}
-
-		return null;
-	}
-
 	private function replacePictureAsHtml(string $front): array|string|null {
 		$pattern = '/!\[.*?\]\((.*?)\)/';
-		//$replacement = '<img src="' . basename($this->getPictureUrl()) . '" />';
 		$replacement = '<img src="$1" />';
-		$front = preg_replace($pattern, $replacement, $front);
 
-		return $front;
+		return preg_replace($pattern, $replacement, $front);
 	}
 
 	private function replaceSubdirInPicturePath(string $front): string {
