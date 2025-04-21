@@ -35,7 +35,7 @@ class CardService
 			$fields = [
 				'Text' => $front,
 				'Back Extra' => $back,
-				'Picture' => 'bla bla bla',
+				'Word' => $card->getWord(),
 			];
 		}
 		else {
@@ -149,5 +149,15 @@ class CardService
 			$file = $this->kernel->getProjectDir() . '/' . $file;
 		}
 		$this->markdownFileAbsPath = $file;
+	}
+
+	public function findClozeWord(string $front): string|null {
+		// find {{c1::word}} in the front text
+		preg_match_all('/{{c\d+::(.*?)}}/', $front, $matches);
+		if (isset($matches[1]) && count($matches[1]) > 0) {
+			return $matches[1][0];
+		}
+
+		return null;
 	}
 }

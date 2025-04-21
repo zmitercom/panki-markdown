@@ -6,11 +6,20 @@ namespace App\Dto;
 
 final class ClozetCard extends Card
 {
-	public function __construct(string $text, string $backExtra, array $tags = []) {
+
+
+	private string|null $word;
+
+	public function __construct(string $text, string $backExtra, string|null $word = null, array $tags = []) {
 		$front = $text;
 		$back = $backExtra;
+		$this->word = $word;
 		parent::__construct($front, $back, $tags);
 
 		$this->type = Card::TYPE_CLOZE;
+	}
+
+	public function getWord(): string|null {
+		return $this->word;
 	}
 }

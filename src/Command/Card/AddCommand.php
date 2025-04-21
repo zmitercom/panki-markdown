@@ -35,7 +35,7 @@ class AddCommand extends Command
 			'phpstorm',
 		];
 
-		$clozetCard = new ClozetCard($text, $tags);
+		$clozetCard = new ClozetCard($text, '', 'test word',$tags);
 		$basicCard = new BasicCard('Just a basic card', 'This is the answer!', $tags);
 
 		try {

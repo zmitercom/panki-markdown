@@ -7,7 +7,8 @@ namespace App\Dto;
 abstract class Card
 {
 	public const TYPE_BASIC = 'Basic';
-	public const TYPE_CLOZE = 'Cloze';
+	public const TYPE_CLOZE = 'ClozeWithWord';
+//	public const TYPE_CLOZE = 'Cloze';
 
 	public string|null $mp3 = null;
 

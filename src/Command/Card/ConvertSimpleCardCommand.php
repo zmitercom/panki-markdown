@@ -130,7 +130,8 @@ class ConvertSimpleCardCommand extends Command
 			$back = trim($back);
 			if (!empty($front) && !empty($back)) {
 				if (str_contains($front, '{{')) {
-					$cardElement = new ClozetCard($front, $back, $tags);
+					$word = $this->cardService->findClozeWord($front);
+					$cardElement = new ClozetCard($front, $back, $word, $tags);
 				}
 				else {
 					$cardElement = new BasicCard($front, $back, $tags);
