@@ -6,6 +6,7 @@ namespace App\Command\Card;
 
 use App\Dto\BasicCard;
 use App\Dto\Card;
+use App\Dto\ClozetCard;
 use App\Exception\ApiResponseException;
 use App\Exception\ConnectionException;
 use App\Service\CardService;
@@ -68,12 +69,8 @@ class ConvertSimpleCardCommand extends Command
 				$output->writeln('<info>Card added: ' . $front . ' (ID: ' . $id . ')</info>');
 			} catch (ApiResponseException $e) {
 				$output->writeln('<error>API response error: ' . $e->getMessage() . '</error>');
-
-				return Command::FAILURE;
 			} catch (ConnectionException $e) {
 				$output->writeln('<error>Connection error: ' . $e->getMessage() . '</error>');
-
-				return Command::FAILURE;
 			}
 		}
 
@@ -131,9 +128,14 @@ class ConvertSimpleCardCommand extends Command
 
 			$front = trim($front);
 			$back = trim($back);
-
 			if (!empty($front) && !empty($back)) {
-				$cards[] = new BasicCard($front, $back, $tags);
+				if (str_contains($front, '{{')) {
+					$cardElement = new ClozetCard($front, $back, $tags);
+				}
+				else {
+					$cardElement = new BasicCard($front, $back, $tags);
+				}
+				$cards[] = $cardElement;
 			}
 		}
 

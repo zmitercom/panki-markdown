@@ -16,43 +16,15 @@ class CardService
 
 	public function __construct(
 		private readonly RequestService  $requestService,
-		private readonly KernelInterface $kernel
+		private readonly KernelInterface $kernel,
+		private readonly MediaService    $mediaService
 	) {
 	}
 
 	/**
 	 * @throws ApiResponseException
 	 * @throws ConnectionException
-	 */
-	public function addClozeCardToAnki(string $deckName, string $text, array $tags = []): void {
-		$post = [
-			'action' => 'addNote',
-			'version' => 6,
-			'params' => [
-				'note' => [
-					'deckName' => $deckName,
-					'modelName' => 'Cloze',
-					'fields' => [
-						'Text' => $text,
-					],
-					'options' => [
-						'allowDuplicate' => false,
-					],
-					'tags' => $tags,
-				],
-			],
-		];
-
-		$response = $this->requestService->do($post);
-
-		if (isset($response['error'])) {
-			throw new ApiResponseException('AnkiConnect error: ' . $response['error']);
-		}
-	}
-
-	/**
-	 * @throws ApiResponseException
-	 * @throws ConnectionException
+	 * @throws PictureException
 	 */
 	public function addCardToAnki(string $deckName, Card $card): int {
 		$front = $card->getFront();
@@ -63,6 +35,7 @@ class CardService
 			$fields = [
 				'Text' => $front,
 				'Back Extra' => $back,
+				'Picture' => 'bla bla bla',
 			];
 		}
 		else {
@@ -81,7 +54,7 @@ class CardService
 					'modelName' => $card->getType(),
 					'fields' => $fields,
 					'options' => [
-						'allowDuplicate' => true,
+						'allowDuplicate' => false,
 					],
 					'tags' => $tags,
 				],
@@ -90,6 +63,10 @@ class CardService
 
 		if ($card->hasPicture()) {
 			foreach ($card->getPicturesPaths() as $picture) {
+				$this->mediaService->uploadFile(
+					$this->makePictureUrl($picture)
+				);
+				/*
 				$post['params']['note']['picture'] = [
 					[
 						'path' => $this->makePictureUrl($picture),
@@ -97,11 +74,40 @@ class CardService
 						//'fields' => ['Front'],
 						// if choose 'Front' then it will be added to the front side (automatically)
 						// So if the image is already in the text, it should not be added again
-						'fields' => [],
+						'fields' => ['Text'],
+						// But empty does not work for Cloze cards, so we need to add it to
 					],
 				];
+				*/
 			}
 		}
+
+		if ($card->findMp3()) {
+			$mp3 = $card->findMp3();
+			$post['params']['note']['audio'] = [
+				[
+					'url' => $mp3,
+					'filename' => basename($mp3),
+					'fields' => [
+						'Back Extra',
+					],
+				],
+			];
+		}
+
+		/*
+		$post['params']['note']['audio'] = [
+			[
+				'url' => "https://assets.languagepod101.com/dictionary/japanese/audiomp3.php?kanji=猫&kana=ねこ",
+				'filename' => 'audio.mp3',
+				'fields' => [
+					'Back Extra',
+				],
+			],
+		];
+		*/
+
+//		dd($post);
 
 		$response = $this->requestService->do($post);
 
