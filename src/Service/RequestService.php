@@ -5,15 +5,13 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Constant\Api;
-use App\Exception\ConnectionException;
 
 class RequestService
 {
 	// curl localhost:8765 -X POST -d '{"action": "deckNames", "version": 6}'
 	/**
-	 * @throws ConnectionException
 	 */
-	public function do(array $post) {
+	public function do(array $post): array {
 		$ch = curl_init();
 		curl_setopt($ch, CURLOPT_URL, Api::API_URL);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -25,10 +23,12 @@ class RequestService
 		]);
 		$response = curl_exec($ch);
 		if (curl_errno($ch)) {
-			throw new ConnectionException('Curl error: ' . curl_error($ch));
+			return [
+				'error' => 'Curl error: ' . curl_error($ch),
+			];
 		}
 		curl_close($ch);
 
-		return json_decode($response, true);
+		return (array)json_decode($response, true);
 	}
 }
