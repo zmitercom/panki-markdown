@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace App\Command\Card;
 
-use App\Dto\BasicCard;
-use App\Dto\Card;
-use App\Dto\ClozetCard;
 use App\Exception\ApiResponseException;
 use App\Exception\ConnectionException;
 use App\Service\CardService;
+use App\Service\MarkdownService;
 use App\Service\RequestService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -21,8 +19,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 class ConvertSimpleCardCommand extends Command
 {
 	public function __construct(
-		private readonly RequestService $requestService,
-		private readonly CardService    $cardService
+		private readonly RequestService  $requestService,
+		private readonly CardService     $cardService,
+		private readonly MarkdownService $markdownService,
 	) {
 		parent::__construct();
 	}
@@ -52,7 +51,7 @@ class ConvertSimpleCardCommand extends Command
 			return Command::FAILURE;
 		}
 
-		$cards = $this->splitFileToCards($contents);
+		$cards = $this->markdownService->splitFileToCards($contents);
 //		dd($cards);
 
 		$deckName = 'ObsidianDeck';
@@ -77,69 +76,4 @@ class ConvertSimpleCardCommand extends Command
 		return Command::SUCCESS;
 	}
 
-	/**
-	 * @param string $contents
-	 *
-	 * @return Card[]
-	 */
-	private function splitFileToCards(string $contents): array {
-		$cards = [];
-		$chunks = preg_split('/^##\s*/m', $contents);
-
-		foreach ($chunks as $chunk) {
-			if (empty(trim($chunk))) {
-				continue;
-			}
-			//echo "CHUNK:\n" . $chunk . "\n----\n";
-			$chunk = trim($chunk);
-
-			$lines = explode("\n", $chunk);
-			$front = '';
-			$back = '';
-			$tags = [];
-			$collectingFront = true;
-
-			foreach ($lines as $line) {
-				$line = trim($line);
-				if ($line === '' || $line === '%') {
-					continue;
-				}
-
-				if (preg_match_all('/\[#([^\]]+)\]/', $line, $matches)) {
-					foreach ($matches[1] as $tag) {
-						$tags[] = trim($tag);
-					}
-					continue;
-				}
-
-				if (str_starts_with($line, '==')) {
-					$collectingFront = false;
-					$back .= trim(substr($line, 2)) . "\n";
-					continue;
-				}
-
-				if ($collectingFront) {
-					$front .= $line . "\n";
-				}
-				else {
-					$back .= $line . "\n";
-				}
-			}
-
-			$front = trim($front);
-			$back = trim($back);
-			if (!empty($front) && !empty($back)) {
-				if (str_contains($front, '{{')) {
-					$word = $this->cardService->findClozeWord($front);
-					$cardElement = new ClozetCard($front, $back, $word, $tags);
-				}
-				else {
-					$cardElement = new BasicCard($front, $back, $tags);
-				}
-				$cards[] = $cardElement;
-			}
-		}
-
-		return $cards;
-	}
 }
