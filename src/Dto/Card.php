@@ -10,7 +10,7 @@ abstract class Card
 	public const TYPE_CLOZE = 'ClozeWithWord';
 //	public const TYPE_CLOZE = 'Cloze';
 
-	public string|null $mp3 = null;
+	public array $mp3 = [];
 
 	protected string $type = self::TYPE_BASIC;
 
@@ -28,6 +28,7 @@ abstract class Card
 //		$this->back = nl2br($this->back);
 
 		$this->back = $this->parseMp3($this->back);
+		$this->front = $this->parseMp3($this->front);
 
 		$this->front = $this->replaceMarkDownToHtml($this->front);
 
@@ -57,11 +58,12 @@ abstract class Card
 
 	public function getPicturesPaths(): array {
 		// ![](Pasted_image_20250409151639.png)
-		$pattern1 = '/!\[.*\]\((.*)\)/';
+		$pattern1 = '/!\[.*\]\((.*\.(?:png|jpe?g))\)/i';
+
 		// ![[PolishCards-250418-16-1.png]]
-		$pattern2 = '/!\[\[([^\]]+)\]\]/';
+		$pattern2 = '/!\[\[([^\]]+.(?:png|jpe?g))\]\]/';
 		// <img.....
-		$pattern3 = '/<img src="(.*?)"\s*\/?>/';
+		$pattern3 = '/<img src="(.*\.(?:png|jpe?g))"\s*\/?>/';
 
 		$result = [];
 		if (preg_match($pattern1, $this->front, $matches)) {
@@ -132,50 +134,57 @@ abstract class Card
 		return $front;
 	}
 
-	public function findMp3(): string|null {
+	public function getMp3Array(): array {
 		return $this->mp3;
-
-		// find url with https://..... .mp3
-		$pattern = '/https?:\/\/.*?\.mp3/';
-		preg_match($pattern, $this->back, $matches);
-		if (isset($matches[0])) {
-			return $matches[0];
-		}
-
-		return null;
 	}
 
-	private function parseMp3(string $back): string {
+	/**
+	 * Parse mp3 files from the text and remove them from the text.
+	 */
+	private function parseMp3(string $cardText): string {
+		$this->mp3 = [];
+
 		// find <audio src="https://..... .mp3">
 		$pattern = '/<audio src="(.*?)"[^>]*>/';
-		preg_match($pattern, $back, $matches);
-		if (isset($matches[1])) {
-			$this->mp3 = $matches[1];
+		preg_match_all($pattern, $cardText, $matches);
+		if (!empty($matches[1])) {
+			$this->mp3 = array_merge($this->mp3, $matches[1]);
 
-			// remove <audio> tag
-			return (string)preg_replace($pattern, '', $back);
+			// remove <audio> tags
+			$cardText = preg_replace($pattern, '', $cardText);
 		}
 
 		// [audio:https://....audio.mp3]
 		$pattern2 = '/\[audio:(.*?)\]/';
-		preg_match($pattern2, $back, $matches);
-		if (isset($matches[1])) {
-			$this->mp3 = $matches[1];
+		preg_match_all($pattern2, $cardText, $matches);
+		if (!empty($matches[1])) {
+			$this->mp3 = array_merge($this->mp3, $matches[1]);
 
-			// remove [audio:...] tag
-			return (string)preg_replace($pattern2, '', $back);
+			// remove [audio:...] tags
+			$cardText = preg_replace($pattern2, '', $cardText);
 		}
 
 		// find just https://..... .mp3
 		$pattern3 = '/https?:\/\/.*?\.mp3/';
-		preg_match($pattern3, $back, $matches);
-		if (isset($matches[0])) {
-			$this->mp3 = $matches[0];
+		preg_match_all($pattern3, $cardText, $matches);
+		if (!empty($matches[0])) {
+			$this->mp3 = array_merge($this->mp3, $matches[0]);
 
 			// remove https://..... .mp3
-			return (string)preg_replace($pattern3, '', $back);
+			$cardText = preg_replace($pattern3, '', $cardText);
 		}
 
-		return $back;
+		// mp3 as attachments in markdown like:
+		// ![[ttsMP3.com_VoiceText_2025-4-21_14-25-3.mp3]]
+		$pattern4 = '/!\[\[([^\]]+\.mp3)\]\]/';
+		preg_match_all($pattern4, $cardText, $matches);
+		if (!empty($matches[1])) {
+			$this->mp3 = array_merge($this->mp3, $matches[1]);
+
+			// remove ![[...]] tags
+			$cardText = preg_replace($pattern4, '', $cardText);
+		}
+
+		return $cardText;
 	}
 }

@@ -82,17 +82,32 @@ class CardService
 			}
 		}
 
-		if ($card->findMp3()) {
-			$mp3 = $card->findMp3();
-			$post['params']['note']['audio'] = [
-				[
-					'url' => $mp3,
-					'filename' => basename($mp3),
-					'fields' => [
-						'Back Extra',
-					],
-				],
-			];
+		if ($card->getMp3Array()) {
+			foreach ($card->getMp3Array() as $mp3) {
+				// if just filename, then we need to upload it
+				if (!str_contains($mp3, 'http')) {
+//					$this->mediaService->uploadFile(
+//						$this->makePictureUrl($mp3)
+//					);
+					$post['params']['note']['audio'][] = [
+						'path' => $this->makePictureUrl($mp3),
+						'filename' => basename($mp3),
+						'fields' => [
+							'Back Extra',
+						],
+					];
+				}
+				else {
+					// if url
+					$post['params']['note']['audio'][] = [
+						'url' => $mp3,
+						'filename' => basename($mp3),
+						'fields' => [
+							'Back Extra',
+						],
+					];
+				}
+			}
 		}
 
 		/*
